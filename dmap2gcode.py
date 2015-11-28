@@ -53,8 +53,18 @@
     - Fixed compatibility with Python 3
     - Added .tap to extension list
 
+    Version 0.07
+    - Added save configuration button in general settings
+    - Added logic to make PIL loading work with more python variations
+    - Fixed settings reading problem with feed rates, cut perimeter and arc fitting
+    - Removed coolant related M codes from header and footer
+    - Removed automatic G64 insertion (now it must be handled in the g-code header)
+
+    Version 0.08
+    - Added ability to use pipe characters (|) to create carriage returns in the g-code header and postscript.
+
 """
-version = '0.06'
+version = '0.08'
 
 import sys
 VERSION = sys.version_info[0]
@@ -90,6 +100,7 @@ import re
 import binascii
 import getopt
 import operator
+import webbrowser
 
 PIL = True
 if PIL == True:
@@ -99,7 +110,10 @@ if PIL == True:
         from PIL import ImageOps
         import _imaging
     except:
-        PIL = False
+        try:
+            from PIL.Image import core as _imaging # for debian jessie
+        except:
+            PIL = False
 
 NUMPY = True
 if NUMPY == True:
@@ -222,7 +236,7 @@ class Application(Frame):
         self.pixsize.set("0")
         self.toptol.set("-0.005")
 
-        self.tool.set("Ball")           # Options are "Ball", "Flat", "Flat"
+        self.tool.set("Ball")           # Options are "Ball", "Flat", "V"
         self.scanpat.set("Rows")
         self.scandir.set("Alternating") # Options are "Alternating",
                                         #             "Positive"   , "Negative",
@@ -239,7 +253,7 @@ class Application(Frame):
                                         #             "Positive"   , "Negative",
                                         #              "Up Mill", "Down Mill"
                                         
-        self.ROUGH_TOOL.set("Ball")           # Options are "Ball", "Flat", "Flat"                                
+        self.ROUGH_TOOL.set("Ball")           # Options are "Ball", "Flat", "V"                                
         self.ROUGH_V_ANGLE.set("45")
         self.ROUGH_R_FEED.set("15.0")
         self.ROUGH_P_FEED.set("10.0")
@@ -282,6 +296,8 @@ class Application(Frame):
         self.panx = 0
         self.lastx = 0
         self.lasty = 0
+
+        self.HOME_DIR     =  os.path.expanduser("~")
         
         # Derived variables
         if self.units.get() == 'in':
@@ -332,7 +348,7 @@ class Application(Frame):
         # M3 S3000   ; Spindle start at 3000                                     #
         # M7         ; Turn mist coolant on                                      #
         ##########################################################################
-        self.gpre.set("G17 G90 G64 M3 S3000 M7")
+        self.gpre.set("G17 G90 G64 P0.001 M3 S3000")
 
         ##########################################################################
         #                        G-Code Default Postamble                        #
@@ -341,7 +357,7 @@ class Application(Frame):
         # M9 ; Turn all coolant off                                              #
         # M2 ; End Program                                                       #
         ##########################################################################
-        self.gpost.set("M5 M9 M2")
+        self.gpost.set("M5|M2")
         
         self.statusMessage = StringVar()
         self.statusMessage.set("Welcome to dmap2gcode")
@@ -575,6 +591,7 @@ class Application(Frame):
 
         top_Help = Menu(self.menuBar, tearoff=0)
         top_Help.add("command", label = "About", command = self.menu_Help_About)
+        top_Help.add("command", label = "Help (Web Page)", command = self.menu_Help_Web)
         self.menuBar.add("cascade", label="Help", menu=top_Help)
 
         self.master.config(menu=self.menuBar)
@@ -653,9 +670,39 @@ class Application(Frame):
         return 1
 
 ################################################################################
+    def Write_Config_File(self, event):
+        self.WriteGCode(rough_flag=0,config_file=True)
+        config_file = "dmap2gcode.ngc"
+        configname_full = self.HOME_DIR + "/" + config_file
+
+        win_id=self.grab_current()
+        if ( os.path.isfile(configname_full) ):
+            if not message_ask_ok_cancel("Replace", "Replace Exiting Configuration File?\n"+configname_full):
+                try:
+                    win_id.withdraw()
+                    win_id.deiconify()
+                except:
+                    pass
+                return
+
+        try:
+            fout = open(configname_full,'w')
+        except:
+            self.statusMessage.set("Unable to open file for writing: %s" %(configname_full))
+            self.statusbar.configure( bg = 'red' )
+            return
+        for line in self.gcode:
+            try:
+                fout.write(line+'\n')
+            except:
+                fout.write('(skipping line)\n')
+        fout.close
+        self.statusMessage.set("Configuration File Saved: %s" %(configname_full))
+        self.statusbar.configure( bg = 'white' )
+
 
     ################################################################################
-    def WriteGCode(self,rough_flag = 0):
+    def WriteGCode(self,rough_flag = 0,config_file=False):
         global Zero
         header = []
         header.append('( Code generated by dmap2gcode-'+version+'.py widget )')
@@ -676,9 +723,9 @@ class Application(Frame):
         header.append('(dmap2gcode_set toptol     %s )'  %( self.toptol.get()         ))
         header.append('(dmap2gcode_set vangle     %s )'  %( self.v_angle.get()        ))
         header.append('(dmap2gcode_set stepover   %s )'  %( self.stepover.get()       ))
-        header.append('(dmap2gcode_set plfeed     %s )'  %( self.p_feed.get()         ))
-        header.append('(dmap2gcode_set z_safe      %s )'  %( self.z_safe.get()        ))
-        header.append('(dmap2gcode_set z_cut       %s )'  %( self.z_cut.get()         ))
+        header.append('(dmap2gcode_set plFEED     %s )'  %( self.p_feed.get()         ))
+        header.append('(dmap2gcode_set z_safe      %s )' %( self.z_safe.get()         ))
+        header.append('(dmap2gcode_set z_cut       %s )' %( self.z_cut.get()          ))
         header.append('(dmap2gcode_set diatool    %s )'  %( self.dia.get()            ))
         header.append('(dmap2gcode_set origin     %s )'  %( self.origin.get()         ))
         header.append('(dmap2gcode_set tool       %s )'  %( self.tool.get()           ))
@@ -707,9 +754,18 @@ class Application(Frame):
         header.append('(dmap2gcode_set ROUGH_SCANDIR  \042%s\042 )' %( self.ROUGH_SCANDIR.get() ))
         
         header.append("(=========================================================)")
-        header.append(self.gpre.get())
+
+        if (config_file==True):
+            self.gcode = []
+            self.gcode = header
+            return
+
+        #header.append(self.gpre.get())
+        for line in self.gpre.get().split('|'):
+            header.append(line)
 
         postscript = self.gpost.get()
+        postscript = postscript.replace('|', '\n')
         ######################################
         ######################################
         pil_format = False
@@ -1404,9 +1460,9 @@ class Application(Frame):
                 elif "cuttop"  in line:
                     self.cuttop.set(line[line.find("cuttop"):].split()[1])
                 elif "cutperim"  in line:
-                    self.cuttop.set(line[line.find("cutperim"):].split()[1])
+                    self.cutperim.set(line[line.find("cutperim"):].split()[1])
                 elif "disable_arcs"  in line:
-                    self.cuttop.set(line[line.find("disable_arcs"):].split()[1])
+                    self.disable_arcs.set(line[line.find("disable_arcs"):].split()[1])
 
                 # STRING.set()
                 elif "yscale"     in line:
@@ -1417,8 +1473,8 @@ class Application(Frame):
                     self.v_angle.set(line[line.find("vangle"):].split()[1])
                 elif "stepover"    in line:
                     self.stepover.set(line[line.find("stepover"):].split()[1])
-                elif "plfeed"    in line:
-                    self.p_feed.set(line[line.find("plfeed"):].split()[1])
+                elif "plFEED"    in line:
+                    self.p_feed.set(line[line.find("plFEED"):].split()[1])
                 elif "z_safe"    in line:
                     self.z_safe.set(line[line.find("z_safe"):].split()[1])
                 elif "z_cut"    in line:
@@ -1677,6 +1733,9 @@ class Application(Frame):
         about = about + "\143\150\167\157\162\153\163\056\143\157\155\n"
         about = about + "http://www.scorchworks.com/"
         message_box("About dmap2gcode",about)
+
+    def menu_Help_Web(self):
+        webbrowser.open_new(r"http://www.scorchworks.com/Dmap2gcode/dmap2gcode_doc.html")
 
     def KEY_ESC(self, event):
         pass #A stop calculation command may go here
@@ -2153,6 +2212,16 @@ class Application(Frame):
         
         self.Label_Disable_Arcs.place(x=xd_label_L, y=D_Yloc, width=113, height=21)
         self.Checkbutton_Disable_Arcs.configure(variable=self.disable_arcs)
+
+
+        D_Yloc=D_Yloc+D_dY+10
+        self.Label_SaveConfig = Label(gen_settings,text="Configuration File")
+        self.Label_SaveConfig.place(x=xd_label_L, y=D_Yloc, width=113, height=21)
+
+        self.GEN_SaveConfig = Button(gen_settings,text="Save")
+        self.GEN_SaveConfig.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=21, anchor="nw")
+        self.GEN_SaveConfig.bind("<ButtonRelease-1>", self.Write_Config_File)
+
         
         ## Buttons ##
         gen_settings.update_idletasks()
@@ -2659,16 +2728,15 @@ class Gcode:
     #    """\
     #Set exact path mode.  Note that unless self.tolerance is set to zero,
     #the simplification algorithm may still skip over specified points."""
-    def exactpath(self):
-        self.write("G61")
+    #def exactpath(self):
+    #    self.write("G61")
 
     # Set continuous mode.
-    def continuous(self, tolerance=0.0):
-    
-        if tolerance > 0.0:
-            self.write("G64 P%.4f" % tolerance)
-        else:
-            self.write("G64")
+    #def continuous(self, tolerance=0.0):       #commented V0.7
+    #    if tolerance > 0.0:                    #commented V0.7
+    #        self.write("G64 P%.4f" % tolerance)#commented V0.7
+    #    else:                                  #commented V0.7
+    #        self.write("G64")                  #commented V0.7
 
     def rapid(self, x=None, y=None, z=None, a=None):
         #"Perform a rapid move to the specified coordinates"
@@ -3085,7 +3153,7 @@ class Converter:
                            target=lambda s: output_gcode.append(s),
                            disable_arcs = self.disable_arcs)
         g.begin()
-        g.continuous(self.tolerance)
+        #g.continuous(self.tolerance) #commented V0.7
         g.safety()
         
         if self.roughing_delta:
