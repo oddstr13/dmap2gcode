@@ -66,8 +66,12 @@
     Version 0.09
     - Changed the default settings to be compatible with more g-code interpretors
     - Added option to suppress comments in output g-code file (default is now suppressed)
+
+    Version 0.10
+    - Fixed error message when unable to open file the wrong file name appeared.
+    - Removed some library loading code that was causing erratic behavior.
 """
-version = '0.09'
+version = '0.10'
 
 import sys
 VERSION = sys.version_info[0]
@@ -113,10 +117,12 @@ if PIL == True:
         from PIL import ImageOps
         import _imaging
     except:
-        try:
-            from PIL.Image import core as _imaging # for debian jessie
-        except:
-            PIL = False
+        PIL = False
+        # The following was deleted because it caused more problems than it solved
+        #try:
+        #    from PIL.Image import core as _imaging # for debian jessie
+        #except:
+        #    PIL = False
 
 NUMPY = True
 if NUMPY == True:
@@ -150,11 +156,13 @@ class Application(Frame):
         self.x = -1
         self.y = -1
         if PIL == False:
-            fmessage("Python Imaging Library (PIL) was not found...Bummer")
+            fmessage("Python Imaging Library (PIL) was not found.")
+            fmessage("    The program will function but some functionality will be disabled.")
             fmessage("    PIL enables more image file formats and enables the")
             fmessage("    preview image to scale with the window size.")
         if NUMPY == False:
-            fmessage("NumPy was not found...Bummer")
+            fmessage("NumPy was not found.")
+            fmessage("    The program will function properly but the speed will be reduced.")
             fmessage("    With NumPy the speed of gcode generation is about eight times faster.")
                 
         self.createWidgets()
@@ -1603,7 +1611,7 @@ class Application(Frame):
                 self.IMAGE_FILE = fileselect
                     
             except:
-                self.statusMessage.set("Unable to Open Image file: %s" %(self.IMAGE_FILE))
+                self.statusMessage.set("Unable to Open Image file: %s" %(fileselect))
                 self.statusbar.configure( bg = 'red' )    
                 
             
