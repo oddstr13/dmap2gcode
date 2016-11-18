@@ -70,8 +70,11 @@
     Version 0.10
     - Fixed error message when unable to open file the wrong file name appeared.
     - Removed some library loading code that was causing erratic behavior.
+
+    Version 0.11
+    - Made changes to be compatible with modern latest PIL and NUMPY
 """
-version = '0.10'
+version = '0.11'
 
 import sys
 VERSION = sys.version_info[0]
@@ -115,7 +118,7 @@ if PIL == True:
         from PIL import Image
         from PIL import ImageTk
         from PIL import ImageOps
-        import _imaging
+        #import _imaging
     except:
         PIL = False
         # The following was deleted because it caused more problems than it solved
@@ -128,10 +131,11 @@ NUMPY = True
 if NUMPY == True:
     try:
         try:
-            import numpy.numarray as numarray
+            #import numpy.numarray as numarray
             import numpy.core
             olderr = numpy.core.seterr(divide='ignore')
-            plus_inf = (numarray.array((1.,))/0.)[0]
+            #plus_inf = (numarray.array((1.,))/0.)[0]
+            plus_inf = (numpy.array((1.,))/0.)[0]
             numpy.core.seterr(**olderr)
         except ImportError:
             import numarray, numarray.ieeespecial
@@ -3557,7 +3561,8 @@ class Image_Matrix_Numpy:
     def __init__(self, width=2, height=2):
         self.width  = width
         self.height = height
-        self.matrix = numarray.zeros((width, height), 'Float32')
+        #self.matrix = numarray.zeros((width, height), 'Float32')
+        self.matrix = numpy.zeros((width, height), 'Float32')
         self.shape  = [width, height]
         self.t_offset = 0
 
@@ -3573,7 +3578,8 @@ class Image_Matrix_Numpy:
         self.width  = s
         self.height = s
 
-        self.matrix = numarray.zeros((s, s), 'Float32')
+        #self.matrix = numarray.zeros((s, s), 'Float32')
+        self.matrix = numpy.zeros((s, s), 'Float32')
         for x in range(s):
             for y in range(s):
                 self.matrix[x,y]=float(input_list[x][y])       
@@ -3584,7 +3590,8 @@ class Image_Matrix_Numpy:
 
         if pil_format:
             him,wim = im.size
-            self.matrix = numarray.zeros((wim, him), 'Float32')
+            #self.matrix = numarray.zeros((wim, him), 'Float32')
+            self.matrix = numpy.zeros((wim, him), 'Float32')
             for i in range(0,wim):
                 for j in range(0,him):
                     pix = im.getpixel((j,i))
@@ -3592,7 +3599,8 @@ class Image_Matrix_Numpy:
         else:
             him = im.width()
             wim = im.height()
-            self.matrix = numarray.zeros((wim, him), 'Float32')
+            #self.matrix = numarray.zeros((wim, him), 'Float32')
+            self.matrix = numpy.zeros((wim, him), 'Float32')
             for i in range(0,wim):
                 for j in range(0,him):
                     try:    pix = im.get(j,i).split()
@@ -3612,7 +3620,8 @@ class Image_Matrix_Numpy:
         w, h = self.shape
         w1 = w + ts-1
         h1 = h + ts-1
-        temp = numarray.zeros((w1, h1), 'Float32')
+        #temp = numarray.zeros((w1, h1), 'Float32')
+        temp = numpy.zeros((w1, h1), 'Float32')
         for j in range(0, w1):
             for i in range(0, h1):
                 temp[j,i] = -1e1000000
