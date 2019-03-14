@@ -3684,30 +3684,35 @@ def message_ask_ok_cancel(title, mess):
 ################################################################################
 #                          Startup Application                                 #
 ################################################################################
-if NUMPY == True:
-    Image_Matrix = Image_Matrix_Numpy
-else:
-    Image_Matrix = Image_Matrix_List
-    
-root = Tk()
-app = Application(root)
-app.master.title("dmap2gcode V"+version)
-app.master.iconname("dmap2gcode")
-app.master.minsize(780,540)
+def main():
+    global root, Image_Matrix
+    if NUMPY == True:
+        Image_Matrix = Image_Matrix_Numpy
+    else:
+        Image_Matrix = Image_Matrix_List
+        
+    root = Tk()
+    app = Application(root)
+    app.master.title("dmap2gcode V"+version)
+    app.master.iconname("dmap2gcode")
+    app.master.minsize(780,540)
 
 
-try: #Attempt to create temporary icon bitmap file
-    f = open("dmap2gcode_icon",'w')
-    f.write("#define dmap2gcode_icon_width 16\n")
-    f.write("#define dmap2gcode_icon_height 16\n")
-    f.write("static unsigned char dmap2gcode_icon_bits[] = {\n")
-    f.write("   0x3f, 0xfc, 0x1f, 0xf8, 0xcf, 0xf3, 0x6f, 0xe4, 0x6f, 0xed, 0xcf, 0xe5,\n")
-    f.write("   0x1f, 0xf4, 0xfb, 0xf3, 0x73, 0x98, 0x47, 0xce, 0x0f, 0xe0, 0x3f, 0xf8,\n")
-    f.write("   0x7f, 0xfe, 0x3f, 0xfc, 0x9f, 0xf9, 0xcf, 0xf3 };\n")
-    f.close()
-    app.master.iconbitmap("@dmap2gcode_icon")
-    os.remove("dmap2gcode_icon")
-except:
-    fmessage("Unable to create temporary icon file.")
+    try: #Attempt to create temporary icon bitmap file
+        f = open("dmap2gcode_icon",'w')
+        f.write("#define dmap2gcode_icon_width 16\n")
+        f.write("#define dmap2gcode_icon_height 16\n")
+        f.write("static unsigned char dmap2gcode_icon_bits[] = {\n")
+        f.write("   0x3f, 0xfc, 0x1f, 0xf8, 0xcf, 0xf3, 0x6f, 0xe4, 0x6f, 0xed, 0xcf, 0xe5,\n")
+        f.write("   0x1f, 0xf4, 0xfb, 0xf3, 0x73, 0x98, 0x47, 0xce, 0x0f, 0xe0, 0x3f, 0xf8,\n")
+        f.write("   0x7f, 0xfe, 0x3f, 0xfc, 0x9f, 0xf9, 0xcf, 0xf3 };\n")
+        f.close()
+        app.master.iconbitmap("@dmap2gcode_icon")
+        os.remove("dmap2gcode_icon")
+    except:
+        fmessage("Unable to create temporary icon file.")
 
-root.mainloop()
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
