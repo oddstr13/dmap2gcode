@@ -74,7 +74,7 @@
     Version 0.11
     - Made changes to be compatible with modern latest PIL and NUMPY
 """
-version = '0.11'
+version = '0.12-a1'
 
 import sys
 VERSION = sys.version_info[0]
@@ -2803,7 +2803,7 @@ class Gcode:
     def set_feed(self, feed):
         #"Set the feed rate to the given value"
         self.flush()
-        self.write("F%.4f" % feed)
+        self.write("G1 F%.4f" % feed)
 
     def cut(self, x=None, y=None, z=None):
         #"Perform a cutting move at the specified feed rate to the specified coordinates"
