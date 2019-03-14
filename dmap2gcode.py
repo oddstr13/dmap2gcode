@@ -3684,13 +3684,15 @@ def message_ask_ok_cancel(title, mess):
 ################################################################################
 #                          Startup Application                                 #
 ################################################################################
+
+if NUMPY == True:
+    Image_Matrix = Image_Matrix_Numpy
+else:
+    print("Warning: numpy not found, using python lists")
+    Image_Matrix = Image_Matrix_List
+
 def main():
-    global root, Image_Matrix
-    if NUMPY == True:
-        Image_Matrix = Image_Matrix_Numpy
-    else:
-        Image_Matrix = Image_Matrix_List
-        
+    global root
     root = Tk()
     app = Application(root)
     app.master.title("dmap2gcode V"+version)
