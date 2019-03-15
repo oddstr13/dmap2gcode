@@ -201,6 +201,7 @@ class Application(Frame):
         self.tool       = StringVar()
         self.dia        = StringVar()
         self.v_angle    = StringVar()
+        self.tip_dia    = StringVar()
         self.scanpat    = StringVar()
         self.scandir    = StringVar()
         self.f_feed     = StringVar()
@@ -212,6 +213,7 @@ class Application(Frame):
         self.ROUGH_TOOL     = StringVar()
         self.ROUGH_DIA      = StringVar()
         self.ROUGH_V_ANGLE  = StringVar()
+        self.ROUGH_TIP_DIA  = StringVar()
         self.ROUGH_SCANPAT  = StringVar()
         self.ROUGH_SCANDIR  = StringVar()
         self.ROUGH_R_FEED   = StringVar()
@@ -253,12 +255,13 @@ class Application(Frame):
         self.pixsize.set("0")
         self.toptol.set("-0.005")
 
-        self.tool.set("Ball")           # Options are "Ball", "Flat", "V"
+        self.tool.set("Ball")           # Options are "Ball", "Flat", "V", "Taper ball-nose"
         self.scanpat.set("Rows")
         self.scandir.set("Alternating") # Options are "Alternating",
                                         #             "Positive"   , "Negative",
                                         #              "Up Mill", "Down Mill"
         self.v_angle.set("45")
+        self.tip_dia.set("1")
         self.f_feed.set("15")
         self.p_feed.set("10")
         self.stepover.set("0.04")
@@ -270,8 +273,9 @@ class Application(Frame):
                                         #             "Positive"   , "Negative",
                                         #              "Up Mill", "Down Mill"
                                         
-        self.ROUGH_TOOL.set("Ball")           # Options are "Ball", "Flat", "V"                                
+        self.ROUGH_TOOL.set("Ball")           # Options are "Ball", "Flat", "V", "Taper ball-nose"
         self.ROUGH_V_ANGLE.set("45")
+        self.ROUGH_TIP_DIA.set("1")
         self.ROUGH_R_FEED.set("15.0")
         self.ROUGH_P_FEED.set("10.0")
         self.ROUGH_STEPOVER.set("0.04")
@@ -487,7 +491,7 @@ class Application(Frame):
         self.dia.trace_variable("w", self.Entry_ToolDIA_Callback)
 
         self.Label_Tool      = Label(self.master,text="Tool End", anchor=CENTER )
-        self.Tool_OptionMenu = OptionMenu(root, self.tool, "Ball","V","Flat",\
+        self.Tool_OptionMenu = OptionMenu(root, self.tool, "Ball","V","Flat","Taper ball-nose",\
                                                command=self.Set_Input_States_Event)
                 
         self.Label_Vangle = Label(self.master,text="V-Bit Angle", anchor=CENTER )
@@ -495,6 +499,12 @@ class Application(Frame):
         self.Entry_Vangle.configure(textvariable=self.v_angle)
         self.Entry_Vangle.bind('<Return>', self.Recalculate_Click)
         self.v_angle.trace_variable("w", self.Entry_Vangle_Callback)
+        
+        self.Label_TipDIA = Label(self.master,text="Tip diameter", anchor=CENTER )
+        self.Entry_TipDIA = Entry(self.master,width="15")
+        self.Entry_TipDIA.configure(textvariable=self.tip_dia)
+        self.Entry_TipDIA.bind('<Return>', self.Recalculate_Click)
+        self.tip_dia.trace_variable("w", self.Entry_TipDIA_Callback)
 
         self.Label_gcode_opt = Label(self.master,text="Gcode Properties:", anchor=W)
 
@@ -556,6 +566,7 @@ class Application(Frame):
         #ROUGH Setting Window Entry initializations
         self.ROUGH_Entry_ToolDIA=Entry()
         self.ROUGH_Entry_Vangle=Entry()
+        self.ROUGH_Entry_TipDIA=Entry()
         self.ROUGH_Entry_Feed=Entry()
         self.ROUGH_Entry_p_feed=Entry()
         self.ROUGH_Entry_StepOver=Entry()
@@ -741,6 +752,7 @@ class Application(Frame):
             header.append('(dmap2gcode_set yscale     %s )'  %( self.yscale.get()         ))
             header.append('(dmap2gcode_set toptol     %s )'  %( self.toptol.get()         ))
             header.append('(dmap2gcode_set vangle     %s )'  %( self.v_angle.get()        ))
+            header.append('(dmap2gcode_set tip_dia    %s )'  %( self.tip_dia.get()        ))
             header.append('(dmap2gcode_set stepover   %s )'  %( self.stepover.get()       ))
             header.append('(dmap2gcode_set plFEED     %s )'  %( self.p_feed.get()         ))
             header.append('(dmap2gcode_set z_safe      %s )' %( self.z_safe.get()         ))
@@ -764,6 +776,7 @@ class Application(Frame):
             header.append('(dmap2gcode_set ROUGH_TOOL     %s )'  %( self.ROUGH_TOOL.get()    ))
             header.append('(dmap2gcode_set ROUGH_DIA      %s )'  %( self.ROUGH_DIA.get()     ))
             header.append('(dmap2gcode_set ROUGH_V_ANGLE  %s )'  %( self.ROUGH_V_ANGLE.get() ))
+            header.append('(dmap2gcode_set ROUGH_TIP_DIA  %s )'  %( self.ROUGH_TIP_DIA.get() ))
             header.append('(dmap2gcode_set ROUGH_R_FEED   %s )'  %( self.ROUGH_R_FEED.get()  ))
             header.append('(dmap2gcode_set ROUGH_P_FEED   %s )'  %( self.ROUGH_P_FEED.get()  ))
             header.append('(dmap2gcode_set ROUGH_STEPOVER %s )'  %( self.ROUGH_STEPOVER.get()))
@@ -832,8 +845,16 @@ class Application(Frame):
             elif self.tool.get() == "V":
                 v_angle = float(self.v_angle.get())
                 TOOL = make_tool_shape(vee_common(v_angle), tool_diameter, pixel_size)
-            else: #"Ball"
+            elif self.tool.get() == "Taper ball-nose":
+                v_angle = float(self.v_angle.get())
+                tip_dia = float(self.tip_dia.get())
+                TOOL = make_tool_shape(taper_ball_common(v_angle, tip_dia/2), tool_diameter, pixel_size)
+            elif self.tool.get() == "Ball":
                 TOOL = make_tool_shape(ball_tool, tool_diameter, pixel_size)
+            else:
+                t = "ERROR: Unknown tool `{}`".format(self.tool.get())
+                print(t)
+                raise Exception(t)
             ######################################################
                 
             rows = 0
@@ -871,8 +892,16 @@ class Application(Frame):
             elif self.tool.get() == "V":
                 v_angle = float(self.ROUGH_V_ANGLE.get())
                 TOOL = make_tool_shape(vee_common(v_angle), tool_diameter, pixel_size, rough_offset)
-            else: #"Ball"
+            elif self.tool.get() == "Taper ball-nose":
+                v_angle = float(self.ROUGH_V_ANGLE.get())
+                tip_dia = float(self.ROUGH_TIP_DIA.get())
+                TOOL = make_tool_shape(taper_ball_common(v_angle, tip_dia/2), tool_diameter, pixel_size, rough_offset)
+            elif self.tool.get() == "Ball":
                 TOOL = make_tool_shape(ball_tool, tool_diameter, pixel_size, rough_offset)
+            else:
+                t = "ERROR: Unknown tool `{}`".format(self.tool.get())
+                print(t)
+                raise Exception(t)
             ######################################################
 
             rows = 0
@@ -1177,6 +1206,18 @@ class Application(Frame):
     def Entry_Vangle_Callback(self, varName, index, mode):
         self.entry_set(self.Entry_Vangle, self.Entry_Vangle_Check(), new=1)
     #############################
+    def Entry_TipDIA_Check(self):
+        try:
+            value = float(self.tip_dia.get())
+            if  value <= 0.0:
+                self.statusMessage.set(" Diameter should be greater than 0 ")
+                return 2 # Value is invalid number
+        except:
+            return 3     # Value not a number
+        return 0         # Value is a valid number
+    def Entry_TipDIA_Callback(self, varName, index, mode):
+        self.entry_set(self.Entry_TipDIA, self.Entry_TipDIA_Check(), new=1)
+    #############################
     def Entry_Feed_Check(self):
         try:
             value = float(self.f_feed.get())
@@ -1266,6 +1307,18 @@ class Application(Frame):
         return 0         # Value is a valid number
     def ROUGH_Entry_Vangle_Callback(self, varName, index, mode):
         self.entry_set(self.ROUGH_Entry_Vangle, self.ROUGH_Entry_Vangle_Check(), new=1)
+    #############################
+    def ROUGH_Entry_TipDIA_Check(self):
+        try:
+            value = float(self.ROUGH_TIP_DIA.get())
+            if  value <= 0.0:
+                self.statusMessage.set(" Diameter should be greater than 0 ")
+                return 2 # Value is invalid number
+        except:
+            return 3     # Value not a number
+        return 0         # Value is a valid number
+    def ROUGH_Entry_TipDIA_Callback(self, varName, index, mode):
+        self.entry_set(self.ROUGH_Entry_TipDIA, self.ROUGH_Entry_TipDIA_Check(), new=1)
     #############################
     def ROUGH_Entry_Feed_Check(self):
         try:
@@ -1364,6 +1417,7 @@ class Application(Frame):
         self.entry_set(self.Entry_Toptol, self.Entry_Toptol_Check()    ,2) +\
         self.entry_set(self.Entry_ToolDIA, self.Entry_ToolDIA_Check()  ,2) +\
         self.entry_set(self.Entry_Vangle, self.Entry_Vangle_Check()    ,2) +\
+        self.entry_set(self.Entry_TipDIA, self.Entry_TipDIA_Check()    ,2) +\
         self.entry_set(self.Entry_Feed,self.Entry_Feed_Check()         ,2) +\
         self.entry_set(self.Entry_p_feed, self.Entry_p_feed_Check()  ,2)   +\
         self.entry_set(self.Entry_StepOver, self.Entry_StepOver_Check(),2) +\
@@ -1377,6 +1431,7 @@ class Application(Frame):
         ROUGH_error_cnt= \
         self.entry_set(self.ROUGH_Entry_ToolDIA, self.ROUGH_Entry_ToolDIA_Check()  ,2) +\
         self.entry_set(self.ROUGH_Entry_Vangle, self.ROUGH_Entry_Vangle_Check()    ,2) +\
+        self.entry_set(self.ROUGH_Entry_TipDIA, self.ROUGH_Entry_TipDIA_Check()    ,2) +\
         self.entry_set(self.ROUGH_Entry_Feed,self.ROUGH_Entry_Feed_Check()         ,2) +\
         self.entry_set(self.ROUGH_Entry_p_feed, self.ROUGH_Entry_p_feed_Check()  ,2)   +\
         self.entry_set(self.ROUGH_Entry_StepOver, self.ROUGH_Entry_StepOver_Check(),2) +\
@@ -1492,6 +1547,8 @@ class Application(Frame):
                     self.toptol.set(line[line.find("toptol"):].split()[1])
                 elif "vangle"    in line:
                     self.v_angle.set(line[line.find("vangle"):].split()[1])
+                elif "tip_dia"    in line:
+                    self.tip_dia.set(line[line.find("tip_dia"):].split()[1])
                 elif "stepover"    in line:
                     self.stepover.set(line[line.find("stepover"):].split()[1])
                 elif "plFEED"    in line:
@@ -1887,6 +1944,10 @@ class Application(Frame):
                 Yloc=Yloc+24
                 self.Label_Vangle.place(x=x_label_R, y=Yloc, width=w_label, height=21)
                 self.Entry_Vangle.place(x=x_entry_R, y=Yloc, width=w_entry, height=23)
+
+                Yloc=Yloc+24
+                self.Label_TipDIA.place(x=x_label_R, y=Yloc, width=w_label, height=21)
+                self.Entry_TipDIA.place(x=x_entry_R, y=Yloc, width=w_entry, height=23)
                 
                 Yloc=Yloc+24+12
                 self.separator3.place(x=x_label_R, y=Yloc,width=w_label+75+40, height=2)
@@ -1953,12 +2014,19 @@ class Application(Frame):
         self.menu_View_Refresh()
 
     def Set_Input_States(self):
-        if self.tool.get() != "V":
+        if self.tool.get() not in ["V", "Taper ball-nose"]:
             self.Label_Vangle.configure(state="disabled")
             self.Entry_Vangle.configure(state="disabled")
         else:
             self.Label_Vangle.configure(state="normal")
             self.Entry_Vangle.configure(state="normal")
+
+        if self.tool.get() not in ["Taper ball-nose"]:
+            self.Label_TipDIA.configure(state="disabled")
+            self.Entry_TipDIA.configure(state="disabled")
+        else:
+            self.Label_TipDIA.configure(state="normal")
+            self.Entry_TipDIA.configure(state="normal")
 
         if self.cuttop.get():
             self.Entry_Toptol.configure(state="disabled")
@@ -1994,12 +2062,19 @@ class Application(Frame):
         self.Set_Input_States_GEN()
 
     def Set_Input_States_ROUGH(self):
-        if self.ROUGH_TOOL.get() != "V":
+        if self.ROUGH_TOOL.get() not in ["V", "Taper ball-nose"]:
             self.ROUGH_Label_Vangle.configure(state="disabled")
             self.ROUGH_Entry_Vangle.configure(state="disabled")
         else:
             self.ROUGH_Label_Vangle.configure(state="normal")
             self.ROUGH_Entry_Vangle.configure(state="normal")
+        
+        if self.ROUGH_TOOL.get() not in ["Taper ball-nose"]:
+            self.ROUGH_Label_TipDIA.configure(state="disabled")
+            self.ROUGH_Entry_TipDIA.configure(state="disabled")
+        else:
+            self.ROUGH_Label_TipDIA.configure(state="normal")
+            self.ROUGH_Entry_TipDIA.configure(state="normal")
             
     def Set_Input_States_Event_ROUGH(self,event):
         self.Set_Input_States_ROUGH()
@@ -2309,7 +2384,7 @@ class Application(Frame):
         self.ROUGH_Label_tool_opt = Label(rough_settings,text="Roughing Tool Properties:", anchor=W)
         
         self.ROUGH_Label_Tool      = Label(rough_settings,text="Roughing Tool End", anchor=CENTER )
-        self.ROUGH_Tool_OptionMenu       = OptionMenu(rough_settings, self.ROUGH_TOOL, "Ball","V","Flat",\
+        self.ROUGH_Tool_OptionMenu       = OptionMenu(rough_settings, self.ROUGH_TOOL, "Ball","V","Flat","Taper ball-nose",\
                                                command=self.Set_Input_States_Event_ROUGH)
         self.ROUGH_Label_tool_opt.place(x=xd_label_L, y=D_Yloc, width=w_label*2, height=21)
 
@@ -2337,6 +2412,15 @@ class Application(Frame):
         self.ROUGH_V_ANGLE.trace_variable("w", self.ROUGH_Entry_Vangle_Callback)
         self.ROUGH_Label_Vangle.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
         self.ROUGH_Entry_Vangle.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
+
+        D_Yloc=D_Yloc+24
+        self.ROUGH_Label_TipDIA = Label(rough_settings,text="Roughing Tip diameter", anchor=CENTER )
+        self.ROUGH_Entry_TipDIA = Entry(rough_settings,width="15")
+        self.ROUGH_Entry_TipDIA.configure(textvariable=self.ROUGH_TIP_DIA)
+        self.ROUGH_Entry_TipDIA.bind('<Return>', self.Recalculate_Click)
+        self.ROUGH_TIP_DIA.trace_variable("w", self.ROUGH_Entry_TipDIA_Callback)
+        self.ROUGH_Label_TipDIA.place(x=xd_label_L, y=D_Yloc, width=w_label, height=21)
+        self.ROUGH_Entry_TipDIA.place(x=xd_entry_L, y=D_Yloc, width=w_entry, height=23)
         
         D_Yloc=D_Yloc+24+12
         self.ROUGH_separator3.place(x=xd_label_L, y=D_Yloc,width=w_label+75+40, height=2)
@@ -2846,6 +2930,25 @@ def vee_common(angle, rough_offset=0.0):
     def f(r, dia):
         return r * slope
     return f
+
+sind = lambda x: sin(radians(x))
+
+def taper_ball_common(angle, tiprad, rough_offset=0.0):
+    vee = vee_common(angle, rough_offset=rough_offset)
+
+    A = float(angle) / 2
+    ha_s = sind(A)
+    c = tiprad / ha_s
+    d = tiprad * ha_s
+    f = tiprad * sind(90-A)
+
+    def _f(r, rad): # radius to calculate height for, tool radius
+        if r <= f:
+            return ball_tool(r, tiprad)
+        else:
+            return vee(r, rad) - c
+    
+    return _f
 
 def make_tool_shape(f, wdia, resp, rough_offset=0.0):
     # resp is pixel size
